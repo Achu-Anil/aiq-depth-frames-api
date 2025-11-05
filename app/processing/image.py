@@ -18,34 +18,49 @@ from app.core import get_logger
 
 logger = get_logger(__name__)
 
-# Color stops for gradient (dark blue → cyan → green → yellow → red)
-# These create a visually appealing depth colormap
+# Color stops for gradient (dark blue → teal/green → yellow → orange/red)
+# These create a visually appealing depth colormap for seismic/geological data
+# Format: (grayscale_value, (R, G, B))
 COLOR_STOPS: Final[list[tuple[int, tuple[int, int, int]]]] = [
-    (0, (0, 0, 128)),      # Dark blue (deep)
-    (64, (0, 128, 255)),   # Cyan
-    (128, (0, 255, 128)),  # Green
-    (192, (255, 255, 0)),  # Yellow
-    (255, (255, 0, 0)),    # Red (shallow)
+    (0, (0, 0, 139)),        # Deep blue (darkest/deepest)
+    (64, (0, 139, 139)),     # Teal (deep)
+    (128, (0, 200, 100)),    # Green (medium)
+    (192, (255, 215, 0)),    # Yellow (shallow)
+    (255, (255, 69, 0)),     # Orange-red (shallowest)
 ]
 
 
-def generate_colormap_lut() -> NDArray[np.uint8]:
+def make_colormap_lut() -> NDArray[np.uint8]:
     """
     Generate a 256×3 lookup table for grayscale to RGB color mapping.
     
-    Creates a smooth gradient from dark blue (deep) through cyan, green, 
-    yellow to red (shallow). Uses linear interpolation between color stops.
+    Creates a deterministic smooth gradient from dark blue (deep) through 
+    teal/green, yellow to orange/red (shallow). Uses linear interpolation 
+    between predefined color stops.
+    
+    Gradient design:
+    - 0→64:   Deep blue → Teal (deep water/depth)
+    - 65→128: Teal → Green (medium depth)
+    - 129→192: Green → Yellow (transitional)
+    - 193→255: Yellow → Orange-red (shallow/surface)
     
     Returns:
-        NDArray[np.uint8]: Shape (256, 3) array where index [i] gives RGB 
-        triple for grayscale value i
+        NDArray[np.uint8]: Shape (256, 3) array where lut[i] gives RGB 
+        triple for grayscale value i. Deterministic - no randomness.
     
     Example:
-        >>> lut = generate_colormap_lut()
-        >>> lut[0]    # Dark blue for value 0
-        array([  0,   0, 128], dtype=uint8)
-        >>> lut[255]  # Red for value 255
-        array([255,   0,   0], dtype=uint8)
+        >>> lut = make_colormap_lut()
+        >>> lut.shape
+        (256, 3)
+        >>> lut[0]    # Deep blue for value 0
+        array([  0,   0, 139], dtype=uint8)
+        >>> lut[255]  # Orange-red for value 255
+        array([255,  69,   0], dtype=uint8)
+    
+    Notes:
+        - Fully deterministic (no random seed needed)
+        - Vectorized linear interpolation
+        - Pre-computed at module load for O(1) lookup
     """
     # Initialize LUT array
     lut = np.zeros((256, 3), dtype=np.uint8)
@@ -71,16 +86,54 @@ def generate_colormap_lut() -> NDArray[np.uint8]:
     return lut
 
 
+# Backwards compatibility alias
+generate_colormap_lut = make_colormap_lut
+
+
 # Precompute and cache the colormap LUT at module load time
-COLORMAP_LUT: Final[NDArray[np.uint8]] = generate_colormap_lut()
+COLORMAP_LUT: Final[NDArray[np.uint8]] = make_colormap_lut()
+
+
+def apply_lut(gray_2d_uint8: NDArray[np.uint8], lut: NDArray[np.uint8]) -> NDArray[np.uint8]:
+    """
+    Apply color LUT to grayscale image using vectorized indexing.
+    
+    Zero loops - pure NumPy advanced indexing for maximum performance.
+    Maps each grayscale pixel to its corresponding RGB triple via LUT.
+    
+    Performance: O(H×W) with vectorization, ~100x faster than Python loops.
+    
+    Args:
+        gray_2d_uint8: Grayscale image array with values 0-255, shape (H, W)
+        lut: Color lookup table, shape (256, 3) with RGB values
+    
+    Returns:
+        NDArray[np.uint8]: RGB image with shape (H, W, 3)
+    
+    Example:
+        >>> gray = np.array([[0, 64, 128, 192, 255]], dtype=np.uint8)
+        >>> lut = make_colormap_lut()
+        >>> rgb = apply_lut(gray, lut)
+        >>> rgb.shape
+        (1, 5, 3)  # 1 row, 5 pixels, 3 RGB channels
+        >>> rgb[0, 0]  # First pixel (gray=0) → deep blue
+        array([  0,   0, 139], dtype=uint8)
+    
+    Notes:
+        - Fully vectorized - no Python loops
+        - Uses NumPy's advanced indexing: lut[gray] broadcasts correctly
+        - Works with any 2D grayscale image shape
+    """
+    # Vectorized lookup: lut[gray_2d_uint8] returns RGB for each pixel
+    # NumPy automatically broadcasts to shape (H, W, 3)
+    return lut[gray_2d_uint8]
 
 
 def apply_colormap(grayscale: NDArray[np.uint8]) -> NDArray[np.uint8]:
     """
-    Apply color map to grayscale image using vectorized LUT indexing.
+    Apply pre-computed color map to grayscale image using vectorized LUT indexing.
     
-    This is much faster than loops because it uses NumPy's advanced indexing
-    to map all pixel values in a single operation.
+    Convenience wrapper around apply_lut() that uses the global COLORMAP_LUT.
     
     Args:
         grayscale: Grayscale image array with values 0-255, any shape
@@ -94,8 +147,7 @@ def apply_colormap(grayscale: NDArray[np.uint8]) -> NDArray[np.uint8]:
         >>> rgb.shape
         (1, 3, 3)  # 1 row, 3 pixels, 3 channels
     """
-    # Vectorized lookup: COLORMAP_LUT[grayscale] returns RGB for each pixel
-    return COLORMAP_LUT[grayscale]
+    return apply_lut(grayscale, COLORMAP_LUT)
 
 
 def resize_grayscale_row(row: NDArray[np.uint8], target_width: int = 150) -> NDArray[np.uint8]:
