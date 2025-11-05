@@ -1,0 +1,187 @@
+# Docker Compose configuration for Challenge 2 - Image Frames API
+#
+# Usage:
+#   docker compose up          # Start services
+#   docker compose up -d       # Start in detached mode
+#   docker compose down        # Stop and remove containers
+#   docker compose logs -f api # Follow logs
+#   docker compose exec api /bin/bash  # Interactive shell
+#
+# Ingestion:
+#   docker compose exec api python -m app.cli.ingest /app/data/sample.csv
+#
+# API accessible at: http://localhost:8000
+# OpenAPI docs at: http://localhost:8000/docs
+
+services:
+  # ============================================================================
+  # FastAPI Application Service
+  # ============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+
+    image: challenge2-image-api:latest
+
+    container_name: challenge2-api
+
+    # Restart policy for production
+    restart: unless-stopped
+
+    # Port mapping (host:container)
+    ports:
+      - "8000:8000"
+
+    # Environment variables
+    environment:
+      # Server configuration
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      WORKERS: "1"
+
+      # Application settings
+      LOG_LEVEL: "INFO"
+      ENVIRONMENT: "production"
+
+      # Database configuration (SQLite with persistent volume)
+      DATABASE_URL: "sqlite+aiosqlite:////app/data/frames.db"
+
+      # Security (change in production!)
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-changeme-secure-token-here}"
+
+      # Optional: CSV file path for ingestion
+      CSV_FILE_PATH: "/app/data/sample.csv"
+
+    # Volume mounts for data persistence
+    volumes:
+      # Persistent database storage
+      - ./data:/app/data
+
+      # Optional: Mount CSV files for ingestion
+      - ./sample_data:/app/sample_data:ro
+
+      # Optional: Mount logs directory
+      - ./logs:/app/logs
+
+    # Health check
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network configuration
+    networks:
+      - api-network
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  api-network:
+    driver: bridge
+    name: challenge2-network
+
+# ============================================================================
+# Volumes (for explicit volume management)
+# ============================================================================
+volumes:
+  api-data:
+    driver: local
+    name: challenge2-data
+# ============================================================================
+# Additional Services (Optional - uncomment if needed)
+# ============================================================================
+
+# Uncomment below to add PostgreSQL instead of SQLite
+# ----------------------------------------------------------------------------
+#  postgres:
+#    image: postgres:15-alpine
+#    container_name: challenge2-postgres
+#    restart: unless-stopped
+#
+#    environment:
+#      POSTGRES_DB: frames_db
+#      POSTGRES_USER: frames_user
+#      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-changeme}"
+#      PGDATA: /var/lib/postgresql/data/pgdata
+#
+#    volumes:
+#      - postgres-data:/var/lib/postgresql/data
+#
+#    ports:
+#      - "5432:5432"
+#
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U frames_user -d frames_db"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#    networks:
+#      - api-network
+#
+#volumes:
+#  postgres-data:
+#    driver: local
+#    name: challenge2-postgres-data
+#
+# Then update api service environment:
+#   DATABASE_URL: "postgresql+asyncpg://frames_user:${POSTGRES_PASSWORD:-changeme}@postgres:5432/frames_db"
+# ----------------------------------------------------------------------------
+
+# Uncomment below to add Redis for caching
+# ----------------------------------------------------------------------------
+#  redis:
+#    image: redis:7-alpine
+#    container_name: challenge2-redis
+#    restart: unless-stopped
+#
+#    command: redis-server --appendonly yes
+#
+#    volumes:
+#      - redis-data:/data
+#
+#    ports:
+#      - "6379:6379"
+#
+#    healthcheck:
+#      test: ["CMD", "redis-cli", "ping"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#    networks:
+#      - api-network
+#
+#volumes:
+#  redis-data:
+#    driver: local
+#    name: challenge2-redis-data
+# ----------------------------------------------------------------------------
