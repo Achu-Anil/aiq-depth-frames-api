@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """
     Middleware to generate and track request IDs across the application.
-    
+
     For each incoming request:
     1. Extracts or generates a unique request ID
     2. Sets it in context for structured logging
@@ -30,11 +30,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         Process each request with correlation ID tracking.
-        
+
         Args:
             request: Incoming HTTP request
             call_next: Next middleware or route handler
-        
+
         Returns:
             HTTP response with X-Request-ID header
         """

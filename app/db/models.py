@@ -20,12 +20,12 @@ class Base(DeclarativeBase):
 class Frame(Base):
     """
     Image frame model storing processed depth-keyed images.
-    
+
     Each frame represents a single row from the CSV file that has been:
     1. Resized from 200 to 150 pixels width
     2. Colorized using a custom color map
     3. Encoded as PNG binary data
-    
+
     Attributes:
         depth: Depth value (primary key, unique identifier for each frame)
         image_png: PNG-encoded image binary data
@@ -91,10 +91,10 @@ class Frame(Base):
     def to_dict(self) -> dict:
         """
         Convert frame to dictionary representation.
-        
+
         Note: image_png is excluded to avoid large binary data in logs.
         Use this for API responses with explicit image handling.
-        
+
         Returns:
             Dictionary with frame metadata (excluding binary image data)
         """

@@ -58,17 +58,17 @@ async def ingest_csv(
 ) -> dict:
     """
     Ingest CSV file into database.
-    
+
     Reads the CSV in chunks, processes each row (resize, colorize, encode),
     and upserts to the database. Progress is logged every chunk.
-    
+
     Args:
         csv_path: Path to CSV file
         chunk_size: Number of rows to process per batch (default: 500)
-        
+
     Returns:
         dict: Ingestion statistics
-        
+
     Raises:
         FileNotFoundError: If CSV file doesn't exist
         ValueError: If CSV format is invalid
@@ -78,7 +78,7 @@ async def ingest_csv(
     # ========================================
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
-    
+
     logger.info(
         "Starting CSV ingestion",
         extra={
@@ -87,9 +87,9 @@ async def ingest_csv(
             "file_size_mb": csv_path.stat().st_size / (1024 * 1024),
         },
     )
-    
+
     # No need to pre-compute colormap - process_row_to_png handles everything!
-    
+
     # ========================================
     # CSV Processing
     # ========================================
@@ -97,7 +97,7 @@ async def ingest_csv(
     successful_rows = 0
     failed_rows = 0
     start_time = time.time()
-    
+
     try:
         # Read CSV in chunks to avoid loading entire file into memory
         # This is crucial for large datasets (millions of rows)
@@ -110,14 +110,14 @@ async def ingest_csv(
                 **{f"col{i}": "uint8" for i in range(1, 201)},  # Next 200 columns are pixel values
             },
         )
-        
+
         chunk_num = 0
-        
+
         # Process each chunk
         for chunk_df in csv_reader:
             chunk_num += 1
             chunk_start = time.time()
-            
+
             # Get database session for this chunk
             async with get_db_context() as session:
                 # Process each row in the chunk
@@ -125,22 +125,20 @@ async def ingest_csv(
                     try:
                         # Extract depth value (primary key)
                         depth = float(row["depth"])
-                        
+
                         # Extract pixel values (200 columns)
                         # Note: CSV columns are named col1-col200, not 0-199
                         pixel_values = row[[f"col{i}" for i in range(1, 201)]].values
-                        
+
                         # ========================================
                         # Image Processing Pipeline
                         # ========================================
                         # One-stop shop: resize (200→150) + colormap + PNG encoding
                         # This helper function does all the heavy lifting! 🚀
                         png_bytes, width, height = process_row_to_png(
-                            row_data=pixel_values,
-                            source_width=200,
-                            target_width=150
+                            row_data=pixel_values, source_width=200, target_width=150
                         )
-                        
+
                         # ========================================
                         # Database Upsert
                         # ========================================
@@ -153,9 +151,9 @@ async def ingest_csv(
                             height=height,
                             png_bytes=png_bytes,
                         )
-                        
+
                         successful_rows += 1
-                        
+
                     except Exception as e:
                         failed_rows += 1
                         logger.error(
@@ -165,17 +163,17 @@ async def ingest_csv(
                                 "depth": row.get("depth", "unknown"),
                             },
                         )
-                
+
                 # Commit the chunk
                 await session.commit()
-            
+
             # ========================================
             # Progress Logging
             # ========================================
             total_rows += len(chunk_df)
             chunk_duration = time.time() - chunk_start
             rows_per_sec = len(chunk_df) / chunk_duration if chunk_duration > 0 else 0
-            
+
             logger.info(
                 f"Processed chunk {chunk_num}",
                 extra={
@@ -187,7 +185,7 @@ async def ingest_csv(
                     "rows_per_sec": round(rows_per_sec, 1),
                 },
             )
-    
+
     except Exception as e:
         logger.error(
             "CSV ingestion failed",
@@ -197,13 +195,13 @@ async def ingest_csv(
             },
         )
         raise
-    
+
     # ========================================
     # Final Statistics
     # ========================================
     total_duration = time.time() - start_time
     avg_rows_per_sec = total_rows / total_duration if total_duration > 0 else 0
-    
+
     stats = {
         "total_rows": total_rows,
         "successful": successful_rows,
@@ -211,19 +209,19 @@ async def ingest_csv(
         "duration_sec": round(total_duration, 2),
         "avg_rows_per_sec": round(avg_rows_per_sec, 1),
     }
-    
+
     logger.info(
         "CSV ingestion complete",
         extra=stats,
     )
-    
+
     return stats
 
 
 def main() -> None:
     """
     CLI entry point for CSV ingestion.
-    
+
     Parses command-line arguments and runs the ingestion process.
     """
     # ========================================
@@ -244,32 +242,34 @@ Examples:
     docker compose exec api python -m app.cli.ingest /app/data/frames.csv
         """,
     )
-    
+
     parser.add_argument(
         "csv_path",
         type=Path,
         help="Path to CSV file containing depth and pixel data",
     )
-    
+
     parser.add_argument(
         "--chunk-size",
         type=int,
         default=500,
         help="Number of rows to process per batch (default: 500)",
     )
-    
+
     args = parser.parse_args()
-    
+
     # ========================================
     # Run Ingestion
     # ========================================
     try:
         # Run async function in event loop
-        stats = asyncio.run(ingest_csv(
-            csv_path=args.csv_path,
-            chunk_size=args.chunk_size,
-        ))
-        
+        stats = asyncio.run(
+            ingest_csv(
+                csv_path=args.csv_path,
+                chunk_size=args.chunk_size,
+            )
+        )
+
         # Print summary to stdout (for human readability)
         print("\n" + "=" * 60)
         print("✅ Ingestion Complete!")
@@ -280,10 +280,10 @@ Examples:
         print(f"Duration:         {stats['duration_sec']:.2f} seconds")
         print(f"Throughput:       {stats['avg_rows_per_sec']:.1f} rows/sec")
         print("=" * 60 + "\n")
-        
+
         # Exit with success
         sys.exit(0)
-        
+
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
         print(f"\n❌ Error: {e}\n", file=sys.stderr)

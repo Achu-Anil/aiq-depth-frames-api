@@ -30,11 +30,11 @@ _async_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 def get_engine() -> AsyncEngine:
     """
     Get or create the global async database engine.
-    
+
     Configures connection pooling based on database type:
     - SQLite: NullPool (no connection pooling, SQLite limitation)
     - PostgreSQL: QueuePool with sensible defaults
-    
+
     Returns:
         Configured async SQLAlchemy engine
     """
@@ -66,7 +66,7 @@ def get_engine() -> AsyncEngine:
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
     """
     Get or create the global async session factory.
-    
+
     Returns:
         Configured async session maker
     """
@@ -91,15 +91,15 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency function to get a database session.
-    
+
     Use this as a FastAPI dependency to inject database sessions into endpoints:
-    
+
     Example:
         @app.get("/frames")
         async def get_frames(db: AsyncSession = Depends(get_db)):
             # Use db session here
             pass
-    
+
     Yields:
         Async database session
     """
@@ -119,14 +119,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
     """
     Context manager for database sessions outside of FastAPI dependencies.
-    
+
     Use this in scripts or background tasks:
-    
+
     Example:
         async with get_db_context() as db:
             # Use db session here
             pass
-    
+
     Yields:
         Async database session
     """
@@ -145,7 +145,7 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     """
     Initialize the database by creating all tables.
-    
+
     Creates tables defined in SQLAlchemy models if they don't exist.
     Idempotent operation - safe to call multiple times.
     """
@@ -158,7 +158,7 @@ async def init_db() -> None:
 async def close_db() -> None:
     """
     Close database connections and dispose of the engine.
-    
+
     Call this during application shutdown to gracefully close connections.
     """
     global _engine, _async_session_factory

@@ -42,10 +42,10 @@ router = APIRouter()
 async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
     """
     Health check endpoint to verify API and database connectivity.
-    
+
     Returns:
         dict: Health status with application metadata
-    
+
     Example response:
         {
             "status": "healthy",
@@ -58,6 +58,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
     # Test database connection
     try:
         from sqlalchemy import text
+
         await db.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
@@ -149,23 +150,23 @@ async def get_frames(
 ) -> FrameListResponse:
     """
     Get frames within a depth range with pagination.
-    
+
     Args:
         depth_min: Minimum depth (inclusive), optional
         depth_max: Maximum depth (inclusive), optional
         limit: Max frames to return (1-1000)
         offset: Number of frames to skip
         db: Database session (injected)
-    
+
     Returns:
         FrameListResponse with frames and metadata
-        
+
     Raises:
         HTTPException: 400 if depth_max < depth_min
         HTTPException: 500 if database error occurs
     """
     start_time = time.time()
-    
+
     # Validate depth range
     if depth_min is not None and depth_max is not None and depth_max < depth_min:
         logger.warning(
@@ -176,7 +177,7 @@ async def get_frames(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"depth_max ({depth_max}) must be >= depth_min ({depth_min})",
         )
-    
+
     try:
         # Query frames with limit+1 to check if more results exist
         frames_list = await get_frames_by_depth_range(
@@ -186,12 +187,12 @@ async def get_frames(
             limit=limit + 1,  # Fetch one extra to detect has_more
             offset=offset,
         )
-        
+
         # Check if more results are available
         has_more = len(frames_list) > limit
         if has_more:
             frames_list = frames_list[:limit]  # Trim to requested limit
-        
+
         # Convert Frame ORM objects to FrameResponse models
         frame_responses = [
             FrameResponse(
@@ -202,21 +203,21 @@ async def get_frames(
             )
             for frame in frames_list
         ]
-        
+
         # Calculate metadata
         count = len(frame_responses)
-        
+
         # Get actual depth range from results (not query params)
         result_depth_min = None
         result_depth_max = None
         if frame_responses:
             result_depth_min = min(f.depth for f in frame_responses)
             result_depth_max = max(f.depth for f in frame_responses)
-        
+
         # Get total count (expensive, so we skip it for now)
         # Could be optimized with a separate count query or caching
         total = None
-        
+
         metadata = FrameListMetadata(
             count=count,
             total=total,
@@ -226,7 +227,7 @@ async def get_frames(
             offset=offset,
             has_more=has_more,
         )
-        
+
         duration = time.time() - start_time
         logger.info(
             "Frames retrieved",
@@ -240,9 +241,9 @@ async def get_frames(
                 "duration_ms": round(duration * 1000, 2),
             },
         )
-        
+
         return FrameListResponse(frames=frame_responses, metadata=metadata)
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions (like validation errors)
         raise
@@ -319,22 +320,22 @@ async def reload_frames(
 ) -> ReloadResponse:
     """
     Reload frames from CSV (admin endpoint, requires auth).
-    
+
     Args:
         request: Reload parameters (csv_path, chunk_size, clear_existing)
         db: Database session (injected)
         x_admin_token: Admin token from X-Admin-Token header
-    
+
     Returns:
         ReloadResponse with status and metrics
-        
+
     Raises:
         HTTPException: 401 if auth fails
         HTTPException: 400 if request is invalid
         HTTPException: 500 if ingestion fails
     """
     start_time = time.time()
-    
+
     # Authentication check
     expected_token = settings.admin_token
     if not expected_token or x_admin_token != expected_token:
@@ -347,7 +348,7 @@ async def reload_frames(
             detail="Invalid or missing X-Admin-Token header",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     logger.info(
         "Reload request received",
         extra={
@@ -356,42 +357,44 @@ async def reload_frames(
             "clear_existing": request.clear_existing,
         },
     )
-    
+
     try:
         # Clear existing frames if requested
         if request.clear_existing:
             from sqlalchemy import delete
+
             await db.execute(delete(Frame))
             await db.commit()
             logger.info("Cleared all existing frames")
-        
+
         # Determine CSV path and chunk size
         from pathlib import Path
+
         csv_path = Path(request.csv_path) if request.csv_path else Path(settings.csv_file_path)
         chunk_size = request.chunk_size if request.chunk_size else settings.chunk_size
-        
+
         if not csv_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"CSV file not found: {csv_path}",
             )
-        
+
         # Run ingestion (import here to avoid circular dependency)
         from app.processing.ingest import ingest_csv
-        
+
         result = await ingest_csv(
             csv_path=csv_path,
             chunk_size=chunk_size,
             source_width=200,  # Could be made configurable
             target_width=150,  # Could be made configurable
         )
-        
+
         duration = time.time() - start_time
-        
+
         # Clear caches after successful ingestion to ensure fresh data
         clear_all_caches()
         logger.info("Caches cleared after successful reload")
-        
+
         # Check if ingestion was successful
         if result["rows_processed"] == result["frames_upserted"]:
             status_str = "success"
@@ -402,7 +405,7 @@ async def reload_frames(
                 f"Processed {result['rows_processed']} rows but only "
                 f"stored {result['frames_upserted']} frames (some rows failed)"
             )
-        
+
         logger.info(
             "Reload completed",
             extra={
@@ -412,7 +415,7 @@ async def reload_frames(
                 "duration_seconds": duration,
             },
         )
-        
+
         return ReloadResponse(
             status=status_str,
             message=message,
@@ -420,7 +423,7 @@ async def reload_frames(
             frames_stored=result["frames_upserted"],
             duration_seconds=duration,
         )
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
@@ -447,10 +450,10 @@ async def reload_frames(
 async def get_cache_statistics():
     """
     Retrieve cache performance statistics.
-    
+
     Returns detailed metrics for both the frame cache (single depth lookups)
     and the range cache (depth range queries).
-    
+
     Returns:
         dict: Cache statistics including:
             - frame_cache: Stats for single frame lookups
@@ -463,7 +466,7 @@ async def get_cache_statistics():
             - range_cache: Stats for range queries (same structure)
             - total_requests: Combined hits + misses across both caches
             - overall_hit_rate: Combined hit rate across both caches
-    
+
     Example Response:
         {
             "frame_cache": {
@@ -487,16 +490,14 @@ async def get_cache_statistics():
         }
     """
     stats = get_cache_stats()
-    
+
     # Calculate overall statistics
     total_hits = stats["frame_cache"]["hits"] + stats["range_cache"]["hits"]
     total_misses = stats["frame_cache"]["misses"] + stats["range_cache"]["misses"]
     total_requests = total_hits + total_misses
-    
-    overall_hit_rate = (
-        (total_hits / total_requests * 100) if total_requests > 0 else 0.0
-    )
-    
+
+    overall_hit_rate = (total_hits / total_requests * 100) if total_requests > 0 else 0.0
+
     return {
         **stats,
         "total_requests": total_requests,
@@ -527,20 +528,20 @@ async def clear_caches(
 ):
     """
     Clear all caches (requires admin authentication).
-    
+
     This endpoint forces all subsequent requests to hit the database,
     ensuring fresh data is returned. Useful after re-ingestion or
     when debugging cache-related issues.
-    
+
     Args:
         x_admin_token: Admin token from request header
-    
+
     Returns:
         dict: Confirmation with pre-clear cache sizes
-    
+
     Raises:
         HTTPException: 401 if token is invalid or missing
-    
+
     Example Response:
         {
             "status": "cleared",
@@ -558,22 +559,22 @@ async def clear_caches(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing admin token",
         )
-    
+
     # Get stats before clearing
     stats = get_cache_stats()
     previous_sizes = {
         "frame_cache": stats["frame_cache"]["size"],
         "range_cache": stats["range_cache"]["size"],
     }
-    
+
     # Clear all caches
     clear_all_caches()
-    
+
     logger.info(
         "Caches cleared by admin",
         extra={"previous_sizes": previous_sizes},
     )
-    
+
     return {
         "status": "cleared",
         "message": "All caches cleared successfully",
@@ -599,19 +600,19 @@ async def clear_caches(
 async def get_metrics(db: AsyncSession = Depends(get_db)):
     """
     Get comprehensive application metrics.
-    
+
     Provides insight into:
     - Total frames stored
     - Depth range (min/max)
     - Cache hit rates
     - Performance statistics
-    
+
     Args:
         db: Database session (injected)
-    
+
     Returns:
         dict: Application metrics
-    
+
     Example Response:
         {
             "database": {
@@ -641,10 +642,10 @@ async def get_metrics(db: AsyncSession = Depends(get_db)):
     # Get database metrics
     total_frames = await count_frames(db)
     depth_min, depth_max = await get_depth_range(db)
-    
+
     # Get cache metrics
     cache_stats = get_cache_stats()
-    
+
     return {
         "database": {
             "total_frames": total_frames,

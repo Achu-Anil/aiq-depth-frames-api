@@ -20,10 +20,10 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 def set_request_id(request_id: str | None = None) -> str:
     """
     Set the request ID for the current context.
-    
+
     Args:
         request_id: Optional request ID. If None, generates a new UUID.
-    
+
     Returns:
         The request ID that was set
     """
@@ -35,7 +35,7 @@ def set_request_id(request_id: str | None = None) -> str:
 def get_request_id() -> str:
     """
     Get the request ID for the current context.
-    
+
     Returns:
         Current request ID, or empty string if not set
     """
@@ -45,7 +45,7 @@ def get_request_id() -> str:
 class StructuredFormatter(logging.Formatter):
     """
     Custom JSON formatter for structured logging.
-    
+
     Outputs logs as JSON objects with consistent fields including:
     - timestamp: ISO 8601 formatted time
     - level: Log level name
@@ -102,7 +102,7 @@ class StructuredFormatter(logging.Formatter):
 def setup_logging(log_level: str = "INFO") -> None:
     """
     Configure application logging with structured JSON output.
-    
+
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
@@ -128,10 +128,10 @@ def setup_logging(log_level: str = "INFO") -> None:
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance with the specified name.
-    
+
     Args:
         name: Logger name (typically __name__ of the module)
-    
+
     Returns:
         Configured logger instance
     """

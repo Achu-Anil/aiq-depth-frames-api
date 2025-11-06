@@ -15,7 +15,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
-    
+
     Attributes:
         database_url: SQLAlchemy database connection string
         app_name: Application name for logging and OpenAPI
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     chunk_size: int = Field(
         default=500, ge=1, le=10000, description="Batch size for CSV processing"
     )
-    
+
     # Security settings
     admin_token: str = Field(
         default="change-me-in-production",
@@ -107,10 +107,10 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """
     Create and cache application settings instance.
-    
+
     Uses LRU cache to ensure only one Settings instance is created,
     following the singleton pattern for configuration.
-    
+
     Returns:
         Cached Settings instance
     """

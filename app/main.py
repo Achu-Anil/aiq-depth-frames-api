@@ -38,24 +38,24 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """
     Application lifespan manager for startup and shutdown events.
-    
+
     This is like the application's morning coffee and evening wind-down routine.
     We wake up, stretch our database connections, and get ready for the day.
     At night, we tidy up, close connections, and go to sleep peacefully. 😴
-    
+
     Startup sequence:
         1. Initialize database tables (CREATE TABLE IF NOT EXISTS...)
         2. Log application configuration (because visibility is key)
         3. Warm up connection pools (database connections, assemble!)
-    
+
     Shutdown sequence:
         1. Close database connections (goodbye, old friends)
         2. Cleanup resources (leave no trace)
         3. Log final metrics (how did we do today?)
-    
+
     Args:
         app: FastAPI application instance (the star of the show)
-    
+
     Yields:
         Control to the application (do your thing, FastAPI!)
     """
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Shutdown: Time to go home! 🌙
     # ========================================
     logger.info("Application shutting down")
-    
+
     # Close database connections gracefully
     # (Because manners matter, even for databases)
     await close_db()
@@ -126,6 +126,7 @@ from app.api.models import ErrorResponse
 from app.core import get_request_id
 from datetime import datetime, timezone
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc: HTTPException):
     """Handle HTTP exceptions with consistent error response format."""
@@ -140,6 +141,7 @@ async def http_exception_handler(request, exc: HTTPException):
         ).model_dump(),
     )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
     """Handle request validation errors from Pydantic."""
@@ -153,6 +155,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
             timestamp=datetime.now(timezone.utc).isoformat(),
         ).model_dump(),
     )
+
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request, exc: Exception):
@@ -169,6 +172,7 @@ async def generic_exception_handler(request, exc: Exception):
         ).model_dump(),
     )
 
+
 # ============================================================================
 # Middleware Stack
 # ============================================================================
@@ -184,6 +188,7 @@ app.add_middleware(RequestIDMiddleware)
 # (health checks, frame queries, cache management, etc.)
 app.include_router(router, tags=["health"])
 
+
 # ============================================================================
 # Root Endpoint
 # ============================================================================
@@ -191,13 +196,13 @@ app.include_router(router, tags=["health"])
 async def root() -> dict:
     """
     Root endpoint with API information.
-    
+
     This is the "Hello World" of our API - a friendly welcome message
     with directions to the good stuff (docs, health checks, etc.)
-    
+
     Returns:
         dict: Welcome message and links to important endpoints
-        
+
     Example:
         ```
         GET /

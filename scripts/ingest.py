@@ -93,13 +93,13 @@ async def ingest_with_progress(
     # Phase 1: Explore CSV structure
     logger.info(f"Phase 1: Exploring CSV structure at {csv_path}")
     explore_start = time.time()
-    
+
     try:
         metadata = explore_csv(str(csv_path))
     except Exception as e:
         logger.error(f"Failed to explore CSV: {e}")
         raise
-    
+
     timings["explore_seconds"] = time.time() - explore_start
 
     logger.info(
@@ -112,10 +112,7 @@ async def ingest_with_progress(
         raise ValueError("CSV file is empty")
 
     # Phase 2: Process chunks with progress tracking
-    logger.info(
-        f"Phase 2: Processing chunks (size={chunk_size}, "
-        f"colored={store_colored})..."
-    )
+    logger.info(f"Phase 2: Processing chunks (size={chunk_size}, " f"colored={store_colored})...")
     process_start = time.time()
 
     total_rows = 0
@@ -150,7 +147,7 @@ async def ingest_with_progress(
                 # Progress logging every N frames or every 2 seconds
                 current_time = time.time()
                 frames_since_last = total_frames - last_progress_frames
-                
+
                 should_log = (
                     frames_since_last >= progress_interval
                     or current_time - last_progress_time >= 2.0
@@ -161,7 +158,7 @@ async def ingest_with_progress(
                     elapsed = current_time - process_start
                     fps = total_frames / elapsed if elapsed > 0 else 0
                     percent = 100 * total_rows / metadata["num_rows"]
-                    
+
                     logger.info(
                         f"Progress: {total_rows:,}/{metadata['num_rows']:,} rows "
                         f"({percent:.1f}%), "
@@ -196,14 +193,13 @@ async def ingest_with_progress(
 
     if not validation_passed:
         logger.error(
-            f"Validation FAILED: Stored {total_frames} frames "
-            f"but DB contains {db_count} frames"
+            f"Validation FAILED: Stored {total_frames} frames " f"but DB contains {db_count} frames"
         )
 
     # Phase 4: Calculate final metrics
     total_duration = time.time() - start_time
     throughput_fps = total_frames / total_duration if total_duration > 0 else 0
-    
+
     # Rough throughput estimate: assume ~10KB per 150px colored PNG
     bytes_per_frame = 10 * 1024
     throughput_mbps = (
@@ -357,15 +353,13 @@ Exit Codes:
             )
 
         if args.progress_interval <= 0:
-            raise ValueError(
-                f"Progress interval must be positive, got {args.progress_interval}"
-            )
+            raise ValueError(f"Progress interval must be positive, got {args.progress_interval}")
 
         # Run ingestion with progress tracking
         logger.info("=" * 70)
         logger.info("Starting CSV ingestion pipeline...")
         logger.info("=" * 70)
-        
+
         result = await ingest_with_progress(
             csv_path=csv_path,
             chunk_size=args.chunk_size,
@@ -388,14 +382,14 @@ Exit Codes:
         print(f"  Throughput:      {result['throughput_fps']:.1f} frames/sec")
         print(f"  Throughput:      {result['throughput_mbps']:.2f} MB/sec")
         print(f"  Est. DB Size:    {result['db_size_mb']:.2f} MB")
-        
+
         if result["min_depth"] is not None and result["max_depth"] is not None:
             print(
                 f"\nDepth Range:       "
                 f"{result['min_depth']:.4f} → "
                 f"{result['max_depth']:.4f}"
             )
-        
+
         print(f"\nTiming Breakdown:")
         print(f"  Explore CSV:     {result['timings']['explore_seconds']:.3f}s")
         print(f"  Process Chunks:  {result['timings']['process_seconds']:.3f}s")
@@ -409,8 +403,7 @@ Exit Codes:
                 f"but DB contains {result['db_count']:,} frames"
             )
             print(
-                "❌ VALIDATION FAILED: Frame count mismatch "
-                "(see logs for details)",
+                "❌ VALIDATION FAILED: Frame count mismatch " "(see logs for details)",
                 file=sys.stderr,
             )
             return 2  # Exit code 2 for validation errors
@@ -422,8 +415,7 @@ Exit Codes:
                 f"Some rows may have been skipped due to invalid data."
             )
             print(
-                "⚠️  WARNING: Some rows failed processing "
-                "(check logs for details)",
+                "⚠️  WARNING: Some rows failed processing " "(check logs for details)",
                 file=sys.stderr,
             )
             # This is a warning but not a hard failure
@@ -453,11 +445,12 @@ Exit Codes:
         logger.exception("Unexpected error during ingestion")
         print(f"\n❌ ERROR: Unexpected error - {e}", file=sys.stderr)
         print("   See logs for full traceback.\n", file=sys.stderr)
-        
+
         # Print traceback for debugging
         import traceback
+
         traceback.print_exc()
-        
+
         return 3  # Exit code 3 for unexpected/database errors
 
 
