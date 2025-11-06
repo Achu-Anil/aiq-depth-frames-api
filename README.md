@@ -1,6 +1,5 @@
-# 🎨 Image Frames API
+# 🎨 Depth Frames API
 
-> **Challenge 2 - AIQ Backend Engineer Assignment**  
 > A production-ready Python FastAPI application for processing depth-keyed grayscale image frames with custom colorization.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -112,8 +111,8 @@ GET /frames?depth_min=100&depth_max=101
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Achu-Anil/challenge2-image-api.git
-cd challenge2-image-api
+git clone https://github.com/Achu-Anil/aiq-depth-frames-api.git
+cd aiq-depth-frames-api
 
 # 2. Start the API (one command!)
 docker compose up -d
@@ -167,8 +166,8 @@ curl -sSL https://install.python-poetry.org | python3 -
 (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
 
 # 2. Clone and navigate to the project
-git clone https://github.com/Achu-Anil/challenge2-image-api.git
-cd challenge2-image-api
+git clone https://github.com/Achu-Anil/aiq-depth-frames-api.git
+cd aiq-depth-frames-api
 
 # 3. Install dependencies
 poetry install
@@ -189,8 +188,8 @@ poetry run uvicorn app.main:app --reload
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Achu-Anil/challenge2-image-api.git
-cd challenge2-image-api
+git clone https://github.com/Achu-Anil/aiq-depth-frames-api.git
+cd aiq-depth-frames-api
 
 # 2. Create virtual environment
 python -m venv .venv
@@ -489,7 +488,7 @@ curl -s "http://localhost:8000/frames?limit=1" \
 ## 📂 Project Structure
 
 ```
-challenge2-image-api/
+aiq-depth-frames-api/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI application entry point
@@ -1096,7 +1095,7 @@ services:
 
 ```bash
 # Ensure you're in the project root
-cd challenge2-image-api
+cd aiq-depth-frames-api
 
 # Activate virtual environment
 poetry shell  # or: source .venv/bin/activate
