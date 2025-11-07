@@ -1,14 +1,13 @@
 # 🎨 AIQ Depth Frames API
 
-> **Production-Ready Image Processing & API Service**  
+> **Production-Ready Image Processing & API Service**
 > A Python FastAPI application for processing depth-keyed grayscale image frames with custom colorization and intelligent caching.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green.svg)](https://fastapi.tiangolo.com/)
-[![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen.svg)](./tests/)
-[![Coverage](https://img.shields.io/badge/coverage-86%25-yellow.svg)](./htmlcov/)
+[![Tests](https://img.shields.io/badge/tests-266%20passing-brightgreen.svg)](./tests/)
+[![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen.svg)](./htmlcov/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](./Dockerfile)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 ---
 
@@ -51,7 +50,7 @@ This application processes CSV files containing depth-keyed grayscale image data
 
 ```
 CSV Input:
-depth,0,1,2,...,199
+depth,col1,col2,...,col200
 100.5,45,78,92,...,156    ← Grayscale pixel values at depth 100.5m
 
 Processing:
@@ -104,7 +103,7 @@ GET /frames?depth_min=100&depth_max=101
 - ✅ **Multi-stage Docker build** (~200MB production image)
 - ✅ **Docker Compose** with volume persistence
 - ✅ **Health checks** and monitoring endpoints
-- ✅ **133 tests** (100% passing, 86% coverage)
+- ✅ **266 tests** (100% passing, 94% coverage)
 - ✅ **Production-ready** logging and error handling
 
 ---
@@ -139,7 +138,7 @@ start http://localhost:8000/docs  # Windows
 # Create sample CSV
 mkdir -p data
 cat > data/sample.csv << EOF
-depth,0,1,2,3,4,5,6,7,8,9
+depth,col1,col2,col3,col4,col5,col6,col7,col8,col9,col10
 100.0,10,20,30,40,50,60,70,80,90,100
 100.5,15,25,35,45,55,65,75,85,95,105
 101.0,20,30,40,50,60,70,80,90,100,110
@@ -228,15 +227,15 @@ uvicorn app.main:app --reload
 The CSV file must have the following structure:
 
 ```csv
-depth,0,1,2,3,...,199
+depth,col1,col2,col3,...,col200
 100.0,45,67,89,...,234
 100.5,12,34,56,...,178
 101.0,90,88,76,...,123
 ```
 
-- **First column:** `depth` (float) - unique identifier for each scan line
-- **Next 200 columns:** Pixel intensity values (0-255) representing a single row of grayscale data
-- **Header row:** Required (`depth,0,1,2,...,199`)
+- **First column:** `depth` (float) - unique identifier for each scan line (column name can be anything, but first column is treated as depth)
+- **Next 200 columns:** Pixel intensity values (0-255) representing a single row of grayscale data (column names are flexible)
+- **Header row:** Required (any names acceptable, but must have exactly 201 columns total)
 
 ### Ingestion Commands
 
@@ -519,9 +518,8 @@ aiq-depth-frames-api/
 │   │
 │   ├── processing/
 │   │   ├── __init__.py
-│   │   ├── colormap.py          # Colormap LUT generation
-│   │   ├── resize.py            # Bilinear interpolation resize
-│   │   └── png_encode.py        # PNG encoding with Pillow
+│   │   ├── image.py             # Colormap LUT, resize, PNG encoding
+│   │   └── ingest.py            # CSV ingestion processing logic
 │   │
 │   └── cli/
 │       ├── __init__.py
@@ -530,10 +528,18 @@ aiq-depth-frames-api/
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py              # Pytest fixtures
-│   ├── test_api.py              # API integration tests (16 tests)
-│   ├── test_cache.py            # Cache functionality tests (15 tests)
-│   ├── test_db_operations.py   # Database operations tests (73 tests)
-│   └── test_image_processing.py # Image processing unit tests (29 tests)
+│   ├── test_api.py              # API integration tests
+│   ├── test_api_advanced.py     # Advanced API tests
+│   ├── test_api_models.py       # Pydantic model tests
+│   ├── test_api_routes_advanced.py # Advanced route tests
+│   ├── test_cache.py            # Cache functionality tests
+│   ├── test_cli_ingest.py       # CLI ingestion tests
+│   ├── test_colormap.py         # Colormap tests
+│   ├── test_coverage_completion.py # Coverage completion tests
+│   ├── test_db_operations.py   # Database operations tests
+│   ├── test_image_processing.py # Image processing unit tests
+│   ├── test_processing_ingest.py # Processing ingestion tests
+│   └── test_resize.py           # Resize function tests
 │
 ├── data/                        # SQLite database and CSV files (gitignored)
 ├── logs/                        # Application logs (gitignored)
@@ -544,9 +550,8 @@ aiq-depth-frames-api/
 ├── .gitignore                   # Git exclusions
 ├── Dockerfile                   # Multi-stage Docker build (200MB image)
 ├── docker-compose.yml           # Docker Compose orchestration
-├── pyproject.toml               # Poetry dependencies and config
+├── pyproject.toml               # Poetry dependencies and config (includes pytest config)
 ├── poetry.lock                  # Locked dependency versions
-├── pytest.ini                   # Pytest configuration
 │
 ├── README.md                    # This file
 ├── DOCKER.md                    # Comprehensive Docker guide (500+ lines)
@@ -561,9 +566,8 @@ aiq-depth-frames-api/
 - **`app/core/config.py`**: Pydantic Settings for configuration management
 - **`app/core/cache.py`**: TTL-based LRU cache with decorators
 - **`app/db/operations.py`**: Async database operations (get, upsert, query)
-- **`app/processing/colormap.py`**: 5-stop gradient colormap LUT (256×3 array)
-- **`app/processing/resize.py`**: Bilinear interpolation (200px → 150px)
-- **`app/processing/png_encode.py`**: PNG encoding with Pillow
+- **`app/processing/image.py`**: 5-stop gradient colormap LUT (256×3 array), bilinear interpolation (200px → 150px), and PNG encoding with Pillow
+- **`app/processing/ingest.py`**: CSV ingestion processing logic
 - **`app/cli/ingest.py`**: CSV ingestion with progress tracking
 
 ---
@@ -597,27 +601,25 @@ ADMIN_TOKEN=changeme-secure-token-here
 # Ingestion
 CSV_FILE_PATH=./data/sample.csv
 CHUNK_SIZE=500
-
-# Caching
-CACHE_TTL_SECONDS=60
-FRAME_CACHE_SIZE=1000
-RANGE_CACHE_SIZE=100
 ```
+
+**Note:** Cache settings (`CACHE_TTL_SECONDS`, `FRAME_CACHE_SIZE`, `RANGE_CACHE_SIZE`) are currently hardcoded in `app/core/cache.py` and not configurable via environment variables. Defaults are: TTL=60s, Frame Cache=1000, Range Cache=100.
 
 ### Configuration Reference
 
-| Variable            | Type | Default                           | Description                                                     |
-| ------------------- | ---- | --------------------------------- | --------------------------------------------------------------- |
-| `HOST`              | str  | `0.0.0.0`                         | Server bind address                                             |
-| `PORT`              | int  | `8000`                            | Server port                                                     |
-| `LOG_LEVEL`         | str  | `INFO`                            | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
-| `DATABASE_URL`      | str  | `sqlite+aiosqlite:///./frames.db` | Database connection string                                      |
-| `ADMIN_TOKEN`       | str  | `changeme`                        | Admin API authentication token                                  |
-| `CSV_FILE_PATH`     | str  | `./data/sample.csv`               | Default CSV file path                                           |
-| `CHUNK_SIZE`        | int  | `500`                             | CSV processing chunk size                                       |
-| `CACHE_TTL_SECONDS` | int  | `60`                              | Cache entry TTL                                                 |
-| `FRAME_CACHE_SIZE`  | int  | `1000`                            | Max single frame cache entries                                  |
-| `RANGE_CACHE_SIZE`  | int  | `100`                             | Max range query cache entries                                   |
+| Variable        | Type | Default                           | Description                                                     |
+| --------------- | ---- | --------------------------------- | --------------------------------------------------------------- |
+| `API_HOST`      | str  | `0.0.0.0`                         | Server bind address (also accepts `HOST`)                       |
+| `API_PORT`      | int  | `8000`                            | Server port (also accepts `PORT`)                               |
+| `LOG_LEVEL`     | str  | `INFO`                            | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
+| `DATABASE_URL`  | str  | `sqlite+aiosqlite:///./frames.db` | Database connection string                                      |
+| `ADMIN_TOKEN`   | str  | `change-me-in-production`         | Admin API authentication token                                  |
+| `CSV_FILE_PATH` | str  | `./data/frames.csv`               | Default CSV file path                                           |
+| `CHUNK_SIZE`    | int  | `500`                             | CSV processing chunk size                                       |
+| `APP_NAME`      | str  | `ImageFramesAPI`                  | Application name                                                |
+| `APP_VERSION`   | str  | `0.1.0`                           | Application version                                             |
+| `ENVIRONMENT`   | str  | `development`                     | Runtime environment (`development`, `staging`, `production`)    |
+| `API_RELOAD`    | bool | `true`                            | Enable auto-reload on code changes (development only)           |
 
 ---
 
@@ -641,24 +643,25 @@ poetry run pytest tests/test_api.py::test_health_endpoint -v
 
 ### Test Suite Overview
 
-- **133 tests total** (100% passing)
-- **86% code coverage**
+- **266 tests total** (100% passing)
+- **94% code coverage**
 - **Test categories:**
-  - Image processing unit tests (29 tests)
-  - Database operations tests (73 tests)
-  - API integration tests (16 tests)
-  - Cache functionality tests (15 tests)
+  - API integration tests
+  - Database operations tests
+  - Image processing unit tests
+  - Cache functionality tests
+  - CLI ingestion tests
+  - Pydantic model validation tests
 
 ### Test Coverage by Module
 
 ```
 app/api/routes.py                  95%
 app/core/cache.py                  92%
-app/db/operations.py               88%
-app/processing/colormap.py         100%
-app/processing/resize.py           100%
-app/processing/png_encode.py       100%
-app/cli/ingest.py                  75%
+app/db/operations.py               100%
+app/processing/image.py            100%
+app/cli/ingest.py                  94%
+app/core/config.py                 90%
 ```
 
 ### Running Tests in Docker
@@ -745,9 +748,9 @@ This section documents key assumptions and design choices made during developmen
 
 1. **CSV structure is consistent:**
 
-   - First column is always `depth` (float)
-   - Exactly 200 pixel columns (0-199)
-   - Header row present: `depth,0,1,2,...,199`
+   - First column contains depth values (float)
+   - Exactly 200 pixel columns following the depth column
+   - Header row present with column names (names are flexible)
    - Pixel values are integers in range [0, 255]
 
 2. **Each row represents a single horizontal scan line:**
@@ -1239,7 +1242,7 @@ docker compose exec api python -m app.cli.ingest /app/data/sample.csv
 
 ## 📚 Additional Documentation
 
-- **[DOCKER.md](./DOCKER.md)** - Comprehensive Docker deployment guide (500+ lines)
+- **[DOCKER.md](./DOCKER.md)** - Comprehensive Docker deployment guide (~390 lines)
 
   - Multi-stage build explanation
   - docker-compose configuration
@@ -1249,14 +1252,14 @@ docker compose exec api python -m app.cli.ingest /app/data/sample.csv
   - Troubleshooting
   - Production checklist
 
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment summary and metrics
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment summary and metrics (~300 lines)
 
   - Build metrics (time, size)
   - Configuration changes applied
   - Verification steps
   - Production readiness checklist
 
-- **[QUICKSTART.md](./QUICKSTART.md)** - Quick start verification
+- **[QUICKSTART.md](./QUICKSTART.md)** - Quick start verification (~200 lines)
   - One-command deployment
   - Health check verification
   - Sample API calls
@@ -1328,18 +1331,12 @@ alembic upgrade head
 ## 📊 Metrics Summary
 
 - **Lines of Code:** ~3,500 (app), ~2,000 (tests)
-- **Test Coverage:** 86%
-- **Tests:** 133 passing
+- **Test Coverage:** 94%
+- **Tests:** 266 passing
 - **Dependencies:** 12 production, 7 development
 - **Docker Image Size:** ~200MB (multi-stage build)
 - **API Response Time:** <50ms (p95)
 - **Ingestion Throughput:** ~500-1000 rows/sec
-
----
-
-## 📝 License
-
-This project is part of the AIQ Backend Engineer assignment and is provided for evaluation purposes.
 
 ---
 
@@ -1382,7 +1379,7 @@ This project was developed as part of the AIQ Backend Engineer technical assessm
 ### Repository Information
 
 - **GitHub:** [https://github.com/Achu-Anil/aiq-depth-frames-api](https://github.com/Achu-Anil/aiq-depth-frames-api)
-- **Last Updated:** November 6, 2025
+- **Last Updated:** November 7, 2025
 - **Version:** 0.1.0
 - **Python Version:** 3.11+
 - **Status:** ✅ Production Ready
